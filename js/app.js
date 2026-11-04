@@ -331,7 +331,9 @@
   }
 
   function renderStatus() {
-    dom.statDiff.textContent = DIFF_LABELS[state.difficulty] + ' · ' + state.size + '×' + state.size;
+    // Размер показан на переключателе — здесь только сложность, иначе в
+    // узкой колонке боковой панели текст обрезается многоточием.
+    dom.statDiff.textContent = DIFF_LABELS[state.difficulty];
     renderTime();
     dom.statMistakes.textContent = String(state.mistakes);
     dom.statMistakes.classList.toggle('is-bad', state.mistakes > 0);
@@ -350,6 +352,7 @@
     dom.btnRedo.disabled = future.length === 0;
     dom.btnPause.querySelector('.tool-label').textContent = state.paused ? 'Продолжить' : 'Пауза';
     dom.pauseCover.classList.toggle('hidden', !state.paused);
+    dom.boardWrap.classList.toggle('is-paused', state.paused);
     dom.btnHint.disabled = state.finished;
   }
 
@@ -773,6 +776,24 @@
     window.addEventListener('pagehide', function () { save(); });
   }
 
+  /**
+   * Значение по физическому коду клавиши (e.code), а не по символу (e.key):
+   * код описывает положение клавиши, поэтому цифры и буквы работают и на
+   * русской, и на любой другой раскладке.
+   */
+  function valueFromCode(code, size) {
+    var m = /^Digit(\d)$/.exec(code);
+    if (m) {
+      var d = Number(m[1]);
+      // 9x9 печатается цифрами 1..9 -> значения 0..8; 16x16 использует 0..9.
+      if (size === 9) return d >= 1 && d <= 9 ? d - 1 : EMPTY;
+      return d;
+    }
+    m = /^Key([A-F])$/.exec(code);
+    if (m && size === 16) return 10 + (m[1].charCodeAt(0) - 65);
+    return EMPTY;
+  }
+
   function onKey(e) {
     if (!state) return;
     var overlayOpen = !dom.overlay.classList.contains('hidden');
@@ -780,31 +801,37 @@
       if (e.key === 'Escape') hideOverlay();
       return;
     }
-    var k = e.key;
-    var lower = k.length === 1 ? k.toLowerCase() : k;
+    // Спецклавиши приходят с заглавной ('Backspace', 'ArrowUp') — нормализуем
+    // всю строку, иначе switch по строчным именам их не ловил.
+    var k = typeof e.key === 'string' ? e.key.toLowerCase() : '';
+    var code = e.code || '';
 
-    if ((e.ctrlKey || e.metaKey) && lower === 'z') {
+    if ((e.ctrlKey || e.metaKey) && k === 'z') {
       e.preventDefault();
       if (e.shiftKey) redo(); else undo();
       return;
     }
-    if ((e.ctrlKey || e.metaKey) && lower === 'y') { e.preventDefault(); redo(); return; }
+    if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); redo(); return; }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
 
-    switch (lower) {
+    // Хоткеи тоже по положению клавиш — работают и в русской раскладке.
+    if (code === 'KeyN') { toggleNoteMode(); return; }
+    if (code === 'KeyH') { hint(); return; }
+    if (code === 'KeyP') { togglePause(); return; }
+
+    switch (k) {
       case 'arrowup': e.preventDefault(); moveSelection(-1, 0); return;
       case 'arrowdown': e.preventDefault(); moveSelection(1, 0); return;
       case 'arrowleft': e.preventDefault(); moveSelection(0, -1); return;
       case 'arrowright': e.preventDefault(); moveSelection(0, 1); return;
       case 'backspace': case 'delete': case ' ': e.preventDefault(); erase(); return;
-      case 'n': toggleNoteMode(); return;
-      case 'h': hint(); return;
-      case 'p': togglePause(); return;
       case 'escape': state.selected = null; renderCells(); return;
       default: break;
     }
 
-    var value = E.fromChar(k, state ? state.size : 9);
+    var value = valueFromCode(code, state.size);
+    // Запасной путь по символу: экранные клавиатуры и свайп-ввод не присылают e.code.
+    if (value === EMPTY && k.length === 1) value = E.fromChar(k, state.size);
     if (value !== EMPTY) {
       e.preventDefault();
       input(value);

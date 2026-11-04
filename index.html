@@ -33,71 +33,76 @@
     </div>
   </header>
 
-  <section class="controls-top">
-    <div class="segmented" id="size-switch" role="group" aria-label="Размер поля">
-      <button type="button" data-size="9" class="seg-btn is-active">9×9</button>
-      <button type="button" data-size="16" class="seg-btn">16×16 <span class="hex">0–F</span></button>
-    </div>
+  <div class="layout">
 
-    <div class="segmented" id="diff-switch" role="group" aria-label="Сложность">
-      <button type="button" data-diff="easy" class="seg-btn is-active">Лёгкий</button>
-      <button type="button" data-diff="medium" class="seg-btn">Средний</button>
-      <button type="button" data-diff="hard" class="seg-btn">Сложный</button>
-      <button type="button" data-diff="expert" class="seg-btn">Эксперт</button>
-    </div>
-
-    <button id="btn-new" class="btn btn-primary">Новая игра</button>
-  </section>
-
-  <section class="statusbar" aria-live="polite">
-    <div class="stat"><span class="stat-label">Сложность</span><span class="stat-value" id="stat-diff">Лёгкий</span></div>
-    <div class="stat"><span class="stat-label">Время</span><span class="stat-value" id="stat-time">00:00</span></div>
-    <div class="stat"><span class="stat-label">Ошибки</span><span class="stat-value" id="stat-mistakes">0</span></div>
-    <div class="stat"><span class="stat-label">Осталось</span><span class="stat-value" id="stat-left">—</span></div>
-  </section>
-
-  <main class="board-area">
-    <div class="board-wrap" id="board-wrap">
-      <div id="board" class="board size-9" role="grid" aria-label="Поле судоку"></div>
-      <div class="pause-cover hidden" id="pause-cover">
-        <div class="pause-inner">
-          <p>Игра на паузе</p>
-          <button class="btn btn-primary" id="btn-resume">Продолжить</button>
+    <main class="board-area">
+      <div class="board-wrap" id="board-wrap">
+        <div id="board" class="board size-9" role="grid" aria-label="Поле судоку"></div>
+        <div class="pause-cover hidden" id="pause-cover">
+          <div class="pause-inner">
+            <p>Игра на паузе</p>
+            <button class="btn btn-primary" id="btn-resume">Продолжить</button>
+          </div>
         </div>
       </div>
-    </div>
-  </main>
+    </main>
 
-  <section class="pad" id="pad">
-    <div class="pad-digits" id="pad-digits"></div>
-    <div class="pad-tools">
-      <button class="btn tool" id="btn-erase" title="Стереть (Delete)">
-        <span class="tool-ico">⌫</span><span class="tool-label">Стереть</span>
-      </button>
-      <button class="btn tool" id="btn-note" title="Заметки (N)" aria-pressed="false">
-        <span class="tool-ico">✎</span><span class="tool-label">Заметки</span><span class="tool-key">N</span>
-      </button>
-      <button class="btn tool" id="btn-hint" title="Подсказка (H)">
-        <span class="tool-ico">?</span><span class="tool-label">Подсказка</span><span class="tool-key">H</span>
-      </button>
-      <button class="btn tool" id="btn-undo" title="Отменить (Ctrl+Z)">
-        <span class="tool-ico">↶</span><span class="tool-label">Отменить</span>
-      </button>
-      <button class="btn tool" id="btn-redo" title="Вернуть (Ctrl+Shift+Z)">
-        <span class="tool-ico">↷</span><span class="tool-label">Вернуть</span>
-      </button>
-      <button class="btn tool" id="btn-pause" title="Пауза (P)">
-        <span class="tool-ico">❚❚</span><span class="tool-label">Пауза</span>
-      </button>
-    </div>
-  </section>
+    <aside class="side">
+      <section class="controls-top">
+        <div class="segmented" id="size-switch" role="group" aria-label="Размер поля">
+          <button type="button" data-size="9" class="seg-btn is-active">9×9</button>
+          <button type="button" data-size="16" class="seg-btn">16×16 <span class="hex">0–F</span></button>
+        </div>
 
-  <section class="options">
-    <label class="switch"><input type="checkbox" id="opt-errors" checked><span class="switch-ui"></span>Подсвечивать ошибки</label>
-    <label class="switch"><input type="checkbox" id="opt-autonotes" checked><span class="switch-ui"></span>Автозаметки</label>
-    <label class="switch"><input type="checkbox" id="opt-conflicts" checked><span class="switch-ui"></span>Подсвечивать совпадения</label>
-    <button class="link-btn" id="btn-rules">Как играть</button>
-  </section>
+        <div class="segmented" id="diff-switch" role="group" aria-label="Сложность">
+          <button type="button" data-diff="easy" class="seg-btn is-active">Лёгкий</button>
+          <button type="button" data-diff="medium" class="seg-btn">Средний</button>
+          <button type="button" data-diff="hard" class="seg-btn">Сложный</button>
+          <button type="button" data-diff="expert" class="seg-btn">Эксперт</button>
+        </div>
+
+        <button id="btn-new" class="btn btn-primary">Новая игра</button>
+      </section>
+
+      <section class="statusbar" aria-live="polite">
+        <div class="stat"><span class="stat-label">Сложность</span><span class="stat-value" id="stat-diff">Лёгкий</span></div>
+        <div class="stat"><span class="stat-label">Время</span><span class="stat-value" id="stat-time">00:00</span></div>
+        <div class="stat"><span class="stat-label">Ошибки</span><span class="stat-value" id="stat-mistakes">0</span></div>
+        <div class="stat"><span class="stat-label">Осталось</span><span class="stat-value" id="stat-left">—</span></div>
+      </section>
+
+      <section class="pad" id="pad">
+        <div class="pad-digits" id="pad-digits"></div>
+        <div class="pad-tools">
+          <button class="btn tool" id="btn-erase" title="Стереть (Delete)">
+            <span class="tool-ico">⌫</span><span class="tool-label">Стереть</span>
+          </button>
+          <button class="btn tool" id="btn-note" title="Заметки (N)" aria-pressed="false">
+            <span class="tool-ico">✎</span><span class="tool-label">Заметки</span><span class="tool-key">N</span>
+          </button>
+          <button class="btn tool" id="btn-hint" title="Подсказка (H)">
+            <span class="tool-ico">?</span><span class="tool-label">Подсказка</span><span class="tool-key">H</span>
+          </button>
+          <button class="btn tool" id="btn-undo" title="Отменить (Ctrl+Z)">
+            <span class="tool-ico">↶</span><span class="tool-label">Отменить</span>
+          </button>
+          <button class="btn tool" id="btn-redo" title="Вернуть (Ctrl+Shift+Z)">
+            <span class="tool-ico">↷</span><span class="tool-label">Вернуть</span>
+          </button>
+          <button class="btn tool" id="btn-pause" title="Пауза (P)">
+            <span class="tool-ico">❚❚</span><span class="tool-label">Пауза</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="options">
+        <label class="switch"><input type="checkbox" id="opt-errors" checked><span class="switch-ui"></span>Подсвечивать ошибки</label>
+        <label class="switch"><input type="checkbox" id="opt-autonotes" checked><span class="switch-ui"></span>Автозаметки</label>
+        <label class="switch"><input type="checkbox" id="opt-conflicts" checked><span class="switch-ui"></span>Подсвечивать совпадения</label>
+        <button class="link-btn" id="btn-rules">Как играть</button>
+      </section>
+    </aside>
+  </div>
 
   <footer class="footer">
     <span id="save-note">Прогресс сохраняется в этом браузере</span>

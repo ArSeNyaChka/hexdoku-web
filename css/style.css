@@ -15,6 +15,7 @@
   --error-bg: rgba(255, 107, 122, 0.16);
   --peer: rgba(79, 140, 255, 0.10);
   --same: rgba(126, 224, 192, 0.22);
+  --note: #7fd4ff;
   --box-alt: rgba(255, 255, 255, 0.028);
   --shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
   color-scheme: dark;
@@ -37,6 +38,7 @@
   --error-bg: rgba(207, 47, 69, 0.12);
   --peer: rgba(47, 106, 224, 0.09);
   --same: rgba(15, 127, 99, 0.16);
+  --note: #1565c0;
   --box-alt: rgba(20, 40, 80, 0.035);
   --shadow: 0 14px 34px rgba(28, 45, 78, 0.16);
   color-scheme: light;
@@ -55,12 +57,43 @@ body {
 }
 
 .app {
-  max-width: 780px;
+  max-width: 1180px;
   margin: 0 auto;
   padding: 14px 14px 40px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+/* Поле слева, управление справа — когда хватает ширины. */
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .layout {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 24px;
+  }
+  .board-area { flex: 0 0 auto; }
+  .side {
+    flex: 1 1 auto;
+    max-width: 420px;
+    position: sticky;
+    top: 14px;
+  }
+  .board.size-9 { --cell: clamp(30px, calc((100vw - 500px) / 9), 62px); }
+  .board.size-16 { --cell: clamp(24px, calc((100vw - 500px) / 16), 44px); }
 }
 
 /* ---------- Шапка ---------- */
@@ -174,6 +207,21 @@ body {
   border-radius: 14px;
   overscroll-behavior: contain;
 }
+/* Цифры имели z-index: 1 и рисовались поверх подложки паузы, поэтому
+   оставались чёткими над блюром. Теперь подложка с z-index: 5 лежит выше,
+   а поле размывается ещё и своим фильтром — цифры не читаются даже там,
+   где backdrop-filter не поддерживается. */
+/* При паузе содержимое поля скрывается явно: digits/notes имеют z-index и
+   в некоторых движках дорисовывались поверх блюра подложки. visibility
+   работает независимо от поддержки backdrop-filter. */
+.board-wrap.is-paused #board {
+  filter: blur(6px);
+  transition: filter .2s;
+}
+.board-wrap.is-paused .cell .digit,
+.board-wrap.is-paused .cell .notes {
+  visibility: hidden;
+}
 .board {
   --b-thin: 1px;
   --b-thick: 2px;
@@ -232,22 +280,23 @@ body {
 .cell .notes {
   display: none;
   position: absolute;
-  inset: 3px;
+  inset: 2px;
   grid-template-columns: repeat(var(--note-cols), 1fr);
   align-items: center;
   justify-content: center;
-  font: 400 calc(var(--cell) * .225) / 1.15 ui-monospace, SFMono-Regular, Menlo, monospace;
-  color: var(--text-dim);
+  font: 700 calc(var(--cell) * .27) / 1.1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--note);
   z-index: 1;
 }
 .board.size-9 .cell .notes { --note-cols: 3; }
 .board.size-16 .cell .notes { --note-cols: 4; }
 .cell .notes span { text-align: center; visibility: hidden; }
-.cell .notes span.on { visibility: visible; color: var(--accent); font-weight: 600; }
+.cell .notes span.on { visibility: visible; color: var(--note); }
 
 .pause-cover {
   position: absolute;
   inset: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: center;
