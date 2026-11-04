@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HexDoku — судоку 9×9 и 16×16</title>
+<meta name="description" content="Судоку в браузере: классика 9×9 и шестнадцатеричная версия 16×16 (цифры 0–F). Заметки, отмена, автосохранение, работает офлайн.">
+<meta name="theme-color" content="#0e1420">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230e1420'/%3E%3Cg fill='none' stroke='%234f8cff' stroke-width='2'%3E%3Crect x='5' y='5' width='22' height='22' rx='3'/%3E%3Cpath d='M12.5 5v22M19.5 5v22M5 12.5h22M5 19.5h22'/%3E%3C/g%3E%3Ctext x='16' y='22' font-family='monospace' font-size='11' fill='%237ee0c0' text-anchor='middle'%3EF%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="30" height="30">
+          <rect x="2" y="2" width="28" height="28" rx="7" class="logo-bg"></rect>
+          <g class="logo-lines"><rect x="7" y="7" width="18" height="18" rx="2"/><path d="M13 7v18M19 7v18M7 13h18M7 19h18"/></g>
+          <text x="16" y="22" class="logo-mark">F</text>
+        </svg>
+      </span>
+      <div class="brand-text">
+        <h1>HexDoku</h1>
+        <p>Судоку 9×9 и 16×16 · цифры 0–F</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button id="btn-theme" class="icon-btn" title="Сменить тему" aria-label="Сменить тему">
+        <span class="icon-theme">☀</span>
+      </button>
+    </div>
+  </header>
+
+  <section class="controls-top">
+    <div class="segmented" id="size-switch" role="group" aria-label="Размер поля">
+      <button type="button" data-size="9" class="seg-btn is-active">9×9</button>
+      <button type="button" data-size="16" class="seg-btn">16×16 <span class="hex">0–F</span></button>
+    </div>
+
+    <div class="segmented" id="diff-switch" role="group" aria-label="Сложность">
+      <button type="button" data-diff="easy" class="seg-btn is-active">Лёгкий</button>
+      <button type="button" data-diff="medium" class="seg-btn">Средний</button>
+      <button type="button" data-diff="hard" class="seg-btn">Сложный</button>
+      <button type="button" data-diff="expert" class="seg-btn">Эксперт</button>
+    </div>
+
+    <button id="btn-new" class="btn btn-primary">Новая игра</button>
+  </section>
+
+  <section class="statusbar" aria-live="polite">
+    <div class="stat"><span class="stat-label">Сложность</span><span class="stat-value" id="stat-diff">Лёгкий</span></div>
+    <div class="stat"><span class="stat-label">Время</span><span class="stat-value" id="stat-time">00:00</span></div>
+    <div class="stat"><span class="stat-label">Ошибки</span><span class="stat-value" id="stat-mistakes">0</span></div>
+    <div class="stat"><span class="stat-label">Осталось</span><span class="stat-value" id="stat-left">—</span></div>
+  </section>
+
+  <main class="board-area">
+    <div class="board-wrap" id="board-wrap">
+      <div id="board" class="board size-9" role="grid" aria-label="Поле судоку"></div>
+      <div class="pause-cover hidden" id="pause-cover">
+        <div class="pause-inner">
+          <p>Игра на паузе</p>
+          <button class="btn btn-primary" id="btn-resume">Продолжить</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <section class="pad" id="pad">
+    <div class="pad-digits" id="pad-digits"></div>
+    <div class="pad-tools">
+      <button class="btn tool" id="btn-erase" title="Стереть (Delete)">
+        <span class="tool-ico">⌫</span><span class="tool-label">Стереть</span>
+      </button>
+      <button class="btn tool" id="btn-note" title="Заметки (N)" aria-pressed="false">
+        <span class="tool-ico">✎</span><span class="tool-label">Заметки</span><span class="tool-key">N</span>
+      </button>
+      <button class="btn tool" id="btn-hint" title="Подсказка (H)">
+        <span class="tool-ico">?</span><span class="tool-label">Подсказка</span><span class="tool-key">H</span>
+      </button>
+      <button class="btn tool" id="btn-undo" title="Отменить (Ctrl+Z)">
+        <span class="tool-ico">↶</span><span class="tool-label">Отменить</span>
+      </button>
+      <button class="btn tool" id="btn-redo" title="Вернуть (Ctrl+Shift+Z)">
+        <span class="tool-ico">↷</span><span class="tool-label">Вернуть</span>
+      </button>
+      <button class="btn tool" id="btn-pause" title="Пауза (P)">
+        <span class="tool-ico">❚❚</span><span class="tool-label">Пауза</span>
+      </button>
+    </div>
+  </section>
+
+  <section class="options">
+    <label class="switch"><input type="checkbox" id="opt-errors" checked><span class="switch-ui"></span>Подсвечивать ошибки</label>
+    <label class="switch"><input type="checkbox" id="opt-autonotes" checked><span class="switch-ui"></span>Автозаметки</label>
+    <label class="switch"><input type="checkbox" id="opt-conflicts" checked><span class="switch-ui"></span>Подсвечивать совпадения</label>
+    <button class="link-btn" id="btn-rules">Как играть</button>
+  </section>
+
+  <footer class="footer">
+    <span id="save-note">Прогресс сохраняется в этом браузере</span>
+    <span>Работает офлайн · GitHub Pages</span>
+  </footer>
+</div>
+
+<div class="overlay hidden" id="overlay">
+  <div class="overlay-card" id="overlay-card">
+    <div class="overlay-body" id="overlay-body"></div>
+  </div>
+</div>
+
+<script src="./js/sudoku.js"></script>
+<script src="./js/app.js"></script>
+</body>
+</html>

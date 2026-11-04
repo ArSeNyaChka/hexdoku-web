@@ -1,0 +1,18 @@
+{
+  "name": "hexdoku",
+  "version": "1.0.0",
+  "description": "Судоку 9x9 и 16x16 (0-F) для браузера. Без сборки и бэкенда, готово к GitHub Pages.",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/",
+    "start": "python3 -m http.server 8000"
+  },
+  "files": [
+    "index.html",
+    "css",
+    "js"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
