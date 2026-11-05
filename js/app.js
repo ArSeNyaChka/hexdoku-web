@@ -26,6 +26,7 @@
     diffSwitch: document.getElementById('diff-switch'),
     btnNew: document.getElementById('btn-new'),
     btnErase: document.getElementById('btn-erase'),
+    btnStamp: document.getElementById('btn-stamp'),
     btnNote: document.getElementById('btn-note'),
     btnHint: document.getElementById('btn-hint'),
     btnUndo: document.getElementById('btn-undo'),
@@ -39,12 +40,15 @@
     overlayBody: document.getElementById('overlay-body'),
     optErrors: document.getElementById('opt-errors'),
     optAutoNotes: document.getElementById('opt-autonotes'),
+    optAutoAdvance: document.getElementById('opt-autoadvance'),
     optConflicts: document.getElementById('opt-conflicts'),
     saveNote: document.getElementById('save-note')
   };
 
   var state = null;
-  var settings = { theme: 'dark', errors: true, autoNotes: true, conflicts: true };
+  var settings = {
+    theme: 'dark', errors: true, autoNotes: true, conflicts: true, autoAdvance: true
+  };
   var best = {};
   var cells = [];
   var digitBtns = [];
@@ -92,6 +96,9 @@
       given: [],
       selected: null,
       noteMode: false,
+      // Значение «кисти»: -1 — режим выключен, иначе цифра, которая
+      // ставится в любую клетку по клику или проведению пальцем.
+      stampValue: -1,
       mistakes: 0,
       hints: 0,
       clues: 0,
@@ -327,6 +334,7 @@
       var left = state.size - remaining[k];
       digitBtns[k].querySelector('.cnt').textContent = left > 0 ? left : '';
       digitBtns[k].classList.toggle('done', left <= 0);
+      digitBtns[k].classList.toggle('stamp', state.stampValue === k);
     }
   }
 
@@ -348,6 +356,7 @@
 
   function renderTools() {
     dom.btnNote.setAttribute('aria-pressed', state.noteMode ? 'true' : 'false');
+    dom.btnStamp.setAttribute('aria-pressed', state.stampValue >= 0 ? 'true' : 'false');
     dom.btnUndo.disabled = history.length === 0;
     dom.btnRedo.disabled = future.length === 0;
     dom.btnPause.querySelector('.tool-label').textContent = state.paused ? 'Продолжить' : 'Пауза';
@@ -360,6 +369,14 @@
 
   function select(i) {
     if (state.finished || state.paused) return;
+    // Кисть: нажатие по клетке сразу красит её, без выделения.
+    if (state.stampValue >= 0) {
+      if (!applyValue(i, state.stampValue)) return;
+      renderAll();
+      scheduleSave();
+      checkWin();
+      return;
+    }
     if (state.selected === i) return;
     state.selected = i;
     renderCells();
@@ -393,24 +410,9 @@
     }
   }
 
-  function input(value) {
-    if (!canPlay()) return;
-    var i = state.selected;
-    if (i === null) return;
-    if (state.given[i]) return;
-
-    if (state.noteMode) {
-      if (state.grid[i] !== EMPTY) return;
-      pushHistory();
-      var bit = 1 << value;
-      state.notes[i] ^= bit;
-      renderCells();
-      renderStatus();
-      scheduleSave();
-      return;
-    }
-
-    if (state.grid[i] === value) return;
+  /** Записывает значение в клетку: история, автозаметки, счётчик ошибок. */
+  function applyValue(i, value) {
+    if (state.given[i] || state.grid[i] === value) return false;
     pushHistory();
     state.grid[i] = value;
     state.notes[i] = 0;
@@ -423,8 +425,49 @@
       var peers = cfg.peers[i];
       for (var p = 0; p < peers.length; p++) state.notes[peers[p]] &= ~(1 << value);
     }
+    return true;
+  }
 
-    autoAdvance();
+  /** Включает/выключает кисть; value меняет «краску», не выключая режим. */
+  function setStamp(value) {
+    state.stampValue = value;
+    if (value >= 0) state.noteMode = false;
+    renderAll();
+    scheduleSave();
+  }
+
+  function toggleStampMode() {
+    if (!canPlay()) return;
+    if (state.stampValue >= 0) { setStamp(-1); return; }
+    var i = state.selected;
+    setStamp(i !== null && state.grid[i] !== EMPTY ? state.grid[i] : 0);
+  }
+
+  function input(value) {
+    if (!canPlay()) return;
+
+    // Включённая кисть: цифра на панели меняет только «краску».
+    if (state.stampValue >= 0) {
+      setStamp(state.stampValue === value ? -1 : value);
+      return;
+    }
+
+    var i = state.selected;
+    if (i === null) return;
+    if (state.given[i]) return;
+
+    if (state.noteMode) {
+      if (state.grid[i] !== EMPTY) return;
+      pushHistory();
+      state.notes[i] ^= (1 << value);
+      renderCells();
+      renderStatus();
+      scheduleSave();
+      return;
+    }
+
+    if (!applyValue(i, value)) return;
+    if (settings.autoAdvance) autoAdvance();
     renderAll();
     scheduleSave();
     checkWin();
@@ -454,6 +497,8 @@
 
   function toggleNoteMode(force) {
     state.noteMode = typeof force === 'boolean' ? force : !state.noteMode;
+    // Заметки и кисть исключают друг друга: оба режима перехватывают клик.
+    if (state.noteMode) state.stampValue = -1;
     renderTools();
     scheduleSave();
   }
@@ -571,8 +616,12 @@
       '<h3>Управление</h3>' +
       '<ul>' +
       '<li>Клик или тап по клетке — выбрать, затем цифра на панели или с клавиатуры.</li>' +
+      '<li>Цифры и <kbd>A</kbd>…<kbd>F</kbd> работают на любой раскладке — важны ' +
+      'положения клавиш, а не язык.</li>' +
       '<li>Стрелки — перемещение по полю, <kbd>Backspace</kbd> / <kbd>Delete</kbd> — стереть.</li>' +
       '<li><kbd>N</kbd> — режим заметок, <kbd>H</kbd> — подсказка, <kbd>P</kbd> — пауза.</li>' +
+      '<li><kbd>V</kbd> или ◉ — кисть: выберите цифру и ставьте её кликами или свайпом по клеткам. ' +
+      'Повторное нажатие на цифру гасит кисть.</li>' +
       '<li><kbd>Ctrl</kbd>+<kbd>Z</kbd> — отменить, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> — вернуть.</li>' +
       '<li>На телефоне можно вести пальцем по клеткам, чтобы выбрать нужную.</li>' +
       '</ul>' +
@@ -605,6 +654,7 @@
           finished: state.finished,
           paused: state.paused,
           noteMode: state.noteMode,
+          stampValue: state.stampValue,
           selected: state.selected,
           clues: state.clues
         };
@@ -640,6 +690,7 @@
     state.finished = !!g.finished;
     state.paused = !!g.paused;
     state.noteMode = !!g.noteMode;
+    state.stampValue = typeof g.stampValue === 'number' ? g.stampValue : -1;
     state.selected = typeof g.selected === 'number' ? g.selected : null;
     state.clues = g.clues;
     resetHistory();
@@ -656,6 +707,7 @@
     dom.optErrors.checked = settings.errors;
     dom.optAutoNotes.checked = settings.autoNotes;
     dom.optConflicts.checked = settings.conflicts;
+    dom.optAutoAdvance.checked = settings.autoAdvance;
   }
 
   function syncSizeButtons() {
@@ -745,6 +797,11 @@
       renderCells();
       save();
     });
+    dom.optAutoAdvance.addEventListener('change', function () {
+      settings.autoAdvance = dom.optAutoAdvance.checked;
+      save();
+    });
+    dom.btnStamp.addEventListener('click', toggleStampMode);
 
     dom.overlay.addEventListener('click', function (e) {
       var btn = e.target.closest('[data-act]');
@@ -782,7 +839,7 @@
    * русской, и на любой другой раскладке.
    */
   function valueFromCode(code, size) {
-    var m = /^Digit(\d)$/.exec(code);
+    var m = /^(?:Digit|Numpad)(\d)$/.exec(code);
     if (m) {
       var d = Number(m[1]);
       // 9x9 печатается цифрами 1..9 -> значения 0..8; 16x16 использует 0..9.
@@ -816,6 +873,7 @@
 
     // Хоткеи тоже по положению клавиш — работают и в русской раскладке.
     if (code === 'KeyN') { toggleNoteMode(); return; }
+    if (code === 'KeyV') { toggleStampMode(); return; }
     if (code === 'KeyH') { hint(); return; }
     if (code === 'KeyP') { togglePause(); return; }
 

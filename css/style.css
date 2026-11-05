@@ -336,10 +336,19 @@ body {
 .pad-digits button:active { transform: scale(0.94); }
 .pad-digits button .cnt { font-size: 10px; color: var(--text-dim); font-weight: 500; }
 .pad-digits button.done { opacity: .35; }
+/* Кисть: выбранная цифра остаётся «заряженной», пока режим не выключат. */
+.pad-digits button.stamp {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  opacity: 1;
+  box-shadow: 0 6px 18px rgba(79, 140, 255, .35);
+}
+.pad-digits button.stamp .cnt { color: rgba(255, 255, 255, .8); }
 
 .pad-tools {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 7px;
 }
 .tool {
@@ -483,7 +492,7 @@ body {
   .pad-tools { grid-template-columns: repeat(3, 1fr); }
   .btn-primary { margin-left: 0; width: 100%; }
   .controls-top { gap: 8px; }
-  #diff-switch { order: 3; width: 100%; }
+  #size-switch, #diff-switch { width: 100%; }
   .options { font-size: 12.5px; }
 }
 

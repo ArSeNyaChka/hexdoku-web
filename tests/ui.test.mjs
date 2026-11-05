@@ -433,6 +433,93 @@ test('настройки сохраняются между сессиями', as
   assert.equal(settings.errors, false);
 });
 
+test('автопереход: выключение оставляет выделение на той же клетке', async () => {
+  const { doc } = boot();
+  await waitForCells(doc, 81);
+  const opt = doc.getElementById('opt-autoadvance');
+  const cell = firstEmpty(doc);
+  const idx = Number(cell.dataset.i);
+
+  tap(cell);
+  clickDigit(doc, 0);
+  const advancedTo = doc.getElementById('board').children.find((c) => c.classList.contains('selected'));
+  assert.equal(Number(advancedTo.dataset.i) !== idx, true, 'по умолчанию выделение ушло вперёд');
+
+  opt.checked = false;
+  opt.dispatch('change', {});
+  const cell2 = cellByIndex(doc, idx);
+  tap(cell2);
+  clickDigit(doc, 5);
+  const stay = doc.getElementById('board').children.find((c) => c.classList.contains('selected'));
+  assert.equal(Number(stay.dataset.i), idx, 'с автопереходом выделение осталось на месте');
+});
+
+test('кисть: цифра ставится кликом по клетке без предварительного выбора', async () => {
+  const { doc, store } = boot();
+  await waitForCells(doc, 81);
+
+  // Заряжаем кисть значением 3 (в 9x9 это символ "4").
+  click(doc.getElementById('btn-stamp'));
+  clickDigit(doc, 3);
+  await tick(600);
+  assert.equal(saved(store).game.stampValue, 3, 'значение кисти сохранено');
+
+  const target = firstEmpty(doc);
+  const idx = Number(target.dataset.i);
+  tap(target);
+  assert.equal(digitText(cellByIndex(doc, idx)), '4', 'кисть поставила цифру');
+
+  // Выделение при этом не двигается — кисть работает «поверх» выбора.
+  const selected = doc.getElementById('board').children.filter((c) => c.classList.contains('selected'));
+  assert.equal(selected.length, 0, 'кисть не выделяет клетки');
+
+  // Клик по той же цифре выключает режим.
+  clickDigit(doc, 3);
+  await tick(600);
+  assert.equal(saved(store).game.stampValue, -1, 'повторный клик по цифре гасит кисть');
+});
+
+test('кисть: несколько нажатий подряд красят клетки', async () => {
+  const { doc } = boot();
+  await waitForCells(doc, 81);
+  click(doc.getElementById('btn-stamp'));
+  // 0 («1») уже стоит краской по умолчанию, поэтому берём другую цифру.
+  clickDigit(doc, 2);
+
+  const board = doc.getElementById('board');
+  const cells = board.children.filter((c) => !c.classList.contains('given')).slice(0, 3);
+  cells.forEach((c) => tap(c));
+  const painted = cells.filter((c) => digitText(cellByIndex(doc, Number(c.dataset.i))) === '3');
+  assert.equal(painted.length, 3, 'все три клетки покрашены кистью');
+});
+
+test('кисть и заметки исключают друг друга', async () => {
+  const { doc, store } = boot();
+  await waitForCells(doc, 81);
+  click(doc.getElementById('btn-note'));
+  click(doc.getElementById('btn-stamp'));
+  await tick(600);
+  const game = saved(store).game;
+  assert.equal(game.noteMode, false, 'включение кисти выключило заметки');
+  assert.equal(game.stampValue >= 0, true);
+  click(doc.getElementById('btn-note'));
+  await tick(600);
+  assert.equal(saved(store).game.stampValue, -1, 'включение заметок выключило кисть');
+});
+
+test('кисть не перезаписывает данные игрой подсказки', async () => {
+  const { doc, store } = boot();
+  await waitForCells(doc, 81);
+  click(doc.getElementById('btn-stamp'));
+  clickDigit(doc, 0);
+  const givenCell = doc.getElementById('board').children.find((c) => c.classList.contains('given'));
+  const idx = Number(givenCell.dataset.i);
+  const before = digitText(givenCell);
+  tap(givenCell);
+  await tick(600);
+  assert.equal(digitText(cellByIndex(doc, idx)), before, 'подсказка осталась нетронутой');
+});
+
 test('восстановление из хранилища: перезагрузка продолжает игру', async () => {
   const { doc, store } = boot();
   await waitForCells(doc, 81);
