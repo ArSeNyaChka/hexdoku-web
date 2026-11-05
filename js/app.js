@@ -436,7 +436,12 @@
   /** Включает/выключает кисть; value меняет «краску», не выключая режим. */
   function setStamp(value) {
     state.stampValue = value;
-    if (value >= 0) state.noteMode = false;
+    if (value >= 0) {
+      state.noteMode = false;
+      // Кисть работает без выделения: снимаем фокус с выбранной клетки,
+      // чтобы подсветка selected/peers не отвлекала от краски.
+      state.selected = null;
+    }
     renderAll();
     scheduleSave();
   }

@@ -528,6 +528,22 @@ test('кисть: клетки с выбранной цифрой подсвеч
   assert.equal(matching[0].classList.contains('same'), false, 'подсветка снята вместе с кистью');
 });
 
+test('кисть гасит выделение клетки', async () => {
+  const { doc, store } = boot();
+  await waitForCells(doc, 81);
+
+  tap(firstEmpty(doc));
+  const board = doc.getElementById('board');
+  assert.equal(board.children.filter((c) => c.classList.contains('selected')).length, 1,
+    'клетка выделена до включения кисти');
+
+  click(doc.getElementById('btn-stamp'));
+  await tick(600);
+  assert.equal(board.children.filter((c) => c.classList.contains('selected')).length, 0,
+    'с включением кисти выделение пропало');
+  assert.equal(saved(store).game.selected, null, 'выделение сброшено и в состоянии');
+});
+
 test('кисть и заметки исключают друг друга', async () => {
   const { doc, store } = boot();
   await waitForCells(doc, 81);
