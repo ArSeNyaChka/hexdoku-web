@@ -493,6 +493,41 @@ test('кисть: несколько нажатий подряд красят к
   assert.equal(painted.length, 3, 'все три клетки покрашены кистью');
 });
 
+test('кисть: клетки с выбранной цифрой подсвечиваются', async () => {
+  const { doc } = boot();
+  await waitForCells(doc, 81);
+
+  // Берём цифру, которая точно есть среди подсказок, чтобы тест не зависел
+  // от конкретного расклада.
+  const board = doc.getElementById('board');
+  const sample = board.children.find((c) => c.classList.contains('given'));
+  const symbol = digitText(sample);
+  const value = symbol.charCodeAt(0) - '1'.charCodeAt(0);
+
+  click(doc.getElementById('btn-stamp'));
+  clickDigit(doc, value);
+  await tick(600);
+
+  const matching = board.children.filter((c) => digitText(c) === symbol);
+  assert.ok(matching.length > 0, 'на поле есть клетки с выбранной цифрой');
+  matching.forEach((c) => {
+    assert.ok(c.classList.contains('same'), `клетка «${symbol}» подсвечена как совпадение`);
+  });
+
+  // Цифры других значений не подсвечиваются.
+  const other = board.children.find((c) => {
+    const t = digitText(c);
+    return t !== '' && t !== symbol;
+  });
+  assert.ok(other, 'на поле есть клетка с другой цифрой');
+  assert.equal(other.classList.contains('same'), false, 'чужие цифры не подсвечены');
+
+  // После выключения кисти подсветка уходит.
+  clickDigit(doc, value);
+  await tick(600);
+  assert.equal(matching[0].classList.contains('same'), false, 'подсветка снята вместе с кистью');
+});
+
 test('кисть и заметки исключают друг друга', async () => {
   const { doc, store } = boot();
   await waitForCells(doc, 81);

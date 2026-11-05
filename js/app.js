@@ -293,6 +293,9 @@
       peerSet[sel] = 1;
     }
 
+    // В режиме кисти подсвечиваем клетки с «заряженной» цифрой.
+    var stampHighlight = state.stampValue >= 0 ? state.stampValue : EMPTY;
+
     for (var i = 0; i < cells.length; i++) {
       var cell = cells[i];
       var v = state.grid[i];
@@ -317,8 +320,10 @@
       cell.el.classList.toggle('peer', !!(peerSet && peerSet[i] && sel !== i));
       cell.el.classList.toggle(
         'same',
-        selValue !== EMPTY && v === selValue && i !== sel &&
-        !(peerSet && peerSet[i]) && v !== EMPTY
+        (stampHighlight !== EMPTY ? v === stampHighlight : (
+          selValue !== EMPTY && v === selValue && i !== sel &&
+          !(peerSet && peerSet[i]) && v !== EMPTY
+        ))
       );
     }
   }
