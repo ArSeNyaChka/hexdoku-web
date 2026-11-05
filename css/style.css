@@ -65,18 +65,31 @@ body {
   gap: 14px;
 }
 
-/* Поле слева, управление справа — когда хватает ширины. */
+/* Узкие экраны: одна колонка в порядке, удобном на телефоне — переключатели,
+   статистика, поле, цифры и кнопки, «Новая игра», настройки. Контейнеры .side
+   и .controls-top «распаковываются» через display:contents, поэтому их дети
+   участвуют в порядке .layout. На широких экранах возвращается двухколоночная
+   раскладка и порядок из разметки. */
 .layout {
   display: flex;
   flex-direction: column;
   gap: 14px;
   min-width: 0;
 }
-.side {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
+.side { display: contents; }
+.controls-top { display: contents; }
+#size-switch { order: 1; width: 100%; }
+#size-switch .seg-btn { flex: 1 1 0; }
+#diff-switch { order: 2; }
+.statusbar { order: 3; }
+.board-area { order: 4; }
+.pad { order: 5; }
+#btn-new { order: 6; width: 100%; margin-left: 0; }
+.options { order: 7; }
+/* Компактные строки переключателей: держим их рядом, чтобы статистика
+   осталась на одной строке (4 колонки), а не разъехалась на две. */
+@media (min-width: 521px) and (max-width: 899px) {
+  #size-switch .seg-btn, #diff-switch .seg-btn { padding: 8px 9px; font-size: 13px; }
 }
 
 @media (min-width: 900px) {
@@ -85,13 +98,30 @@ body {
     align-items: flex-start;
     gap: 24px;
   }
-  .board-area { flex: 0 0 auto; }
+  .board-area { flex: 0 0 auto; order: 0; }
   .side {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
     flex: 1 1 auto;
     max-width: 420px;
     position: sticky;
     top: 14px;
   }
+  .controls-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  /* «Новая игра» встаёт в одну строку с выбором размера поля, а сложность
+     переносится на всю вторую строку. */
+  #size-switch { order: 0; width: auto; }
+  #size-switch .seg-btn { flex: 0 0 auto; }
+  #btn-new { order: 1; width: auto; }
+  #diff-switch { order: 2; flex: 1 1 100%; }
+  .statusbar, .pad, .options { order: 0; }
   .board.size-9 { --cell: clamp(30px, calc((100vw - 500px) / 9), 62px); }
   .board.size-16 { --cell: clamp(24px, calc((100vw - 500px) / 16), 44px); }
 }
@@ -120,7 +150,9 @@ body {
 .icon-btn:active { transform: scale(0.95); }
 
 /* ---------- Переключатели ---------- */
-.controls-top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+/* .controls-top на узких экранах распаковывается в .layout (display:contents
+   в блоке раскладки выше), поэтому его собственные flex-правила нужны только
+   на широких экранах — они заданы в @media (min-width: 900px). */
 .segmented {
   display: inline-flex;
   padding: 3px;
@@ -490,9 +522,6 @@ body {
   .brand-text p { display: none; }
   .statusbar { grid-template-columns: repeat(2, 1fr); }
   .pad-tools { grid-template-columns: repeat(3, 1fr); }
-  .btn-primary { margin-left: 0; width: 100%; }
-  .controls-top { gap: 8px; }
-  #size-switch, #diff-switch { width: 100%; }
   .options { font-size: 12.5px; }
 }
 
