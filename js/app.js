@@ -555,13 +555,27 @@
     dom.btnHint.disabled = state.finished;
   }
 
+  /**
+   * Как applyValue, но ставит кандидата в заметки (кисть + заметки).
+   * Кандидат — гипотеза, а не цифра, поэтому у соседей ничего не снимаем.
+   */
+  function addNote(i, value) {
+    if (state.given[i] || state.grid[i] !== EMPTY) return false;
+    if (state.notes[i] & (1 << value)) return false; // уже размечено
+    pushHistory();
+    state.notes[i] |= (1 << value);
+    return true;
+  }
+
   /* ----------------------------------------------------------------- input */
 
   function select(i) {
     if (state.finished || state.paused) return;
-    // Кисть: нажатие по клетке сразу красит её, без выделения.
+    // Кисть + заметки: приоритет заметкам, чтобы можно было размечать
+    // кандидата кликами по клеткам.
     if (state.stampValue >= 0) {
-      if (!applyValue(i, state.stampValue)) return;
+      if (state.noteMode ? !addNote(i, state.stampValue)
+                         : !applyValue(i, state.stampValue)) return;
       renderAll();
       scheduleSave();
       checkWin();
@@ -622,7 +636,6 @@
   function setStamp(value) {
     state.stampValue = value;
     if (value >= 0) {
-      state.noteMode = false;
       // Кисть работает без выделения: снимаем фокус с выбранной клетки,
       // чтобы подсветка selected/peers не отвлекала от краски.
       state.selected = null;
@@ -692,8 +705,8 @@
 
   function toggleNoteMode(force) {
     state.noteMode = typeof force === 'boolean' ? force : !state.noteMode;
-    // Заметки и кисть исключают друг друга: оба режима перехватывают клик.
-    if (state.noteMode) state.stampValue = -1;
+    // Включение заметок не выключает кисть: кисть+заметки = расстановка
+    // кандидатов кликами по клеткам.
     renderTools();
     scheduleSave();
   }
@@ -832,7 +845,8 @@
       '<li>Стрелки — перемещение по полю, <kbd>Backspace</kbd> / <kbd>Delete</kbd> — стереть.</li>' +
       '<li><kbd>N</kbd> — режим заметок, <kbd>H</kbd> — подсказка, <kbd>P</kbd> — пауза.</li>' +
       '<li><kbd>V</kbd> или ◉ — кисть: выберите цифру и ставьте её кликами или свайпом по клеткам. ' +
-      'Повторное нажатие на цифру гасит кисть.</li>' +
+      'Повторное нажатие на цифру гасит кисть. ' +
+      'Если перед этим включить заметки (<kbd>N</kbd>), кисть расставляет кандидатов — удобно размечать поле свайпом.</li>' +
       '<li><kbd>Ctrl</kbd>+<kbd>Z</kbd> — отменить, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> — вернуть.</li>' +
       '<li>На телефоне можно вести пальцем по клеткам, чтобы выбрать нужную.</li>' +
       '</ul>' +

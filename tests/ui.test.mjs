@@ -568,18 +568,33 @@ test('кисть гасит выделение клетки', async () => {
   assert.equal(saved(store).game.selected, null, 'выделение сброшено и в состоянии');
 });
 
-test('кисть и заметки исключают друг друга', async () => {
+test('кисть и заметки: кисть расставляет кандидатов, если заметки включены', async () => {
   const { doc, store } = boot();
   await waitForCells(doc, 81);
+  const cell = firstEmpty(doc);
+  const idx = Number(cell.dataset.i);
+
   click(doc.getElementById('btn-note'));
   click(doc.getElementById('btn-stamp'));
+  clickDigit(doc, 5); // «6» — красим кисть шестёркой
   await tick(600);
   const game = saved(store).game;
-  assert.equal(game.noteMode, false, 'включение кисти выключило заметки');
-  assert.equal(game.stampValue >= 0, true);
+  assert.equal(game.noteMode, true, 'заметки остались включены');
+  assert.equal(game.stampValue, 5, 'кисть заряжена');
+
+  tap(cell);
+  await tick(600);
+  const game2 = saved(store).game;
+  assert.equal(game2.grid[idx], E.EMPTY, 'цифра не поставлена');
+  assert.notEqual(game2.notes[idx] & (1 << 5), 0, 'заметка 6 попала в битовую маску');
+  assert.ok(cellByIndex(doc, idx).classList.contains('notes-only'), 'клетка shows заметку');
+
+  // Выключение заметок возвращает кисть к обычным цифрам.
   click(doc.getElementById('btn-note'));
   await tick(600);
-  assert.equal(saved(store).game.stampValue, -1, 'включение заметок выключило кисть');
+  tap(cellByIndex(doc, idx));
+  await tick(600);
+  assert.equal(digitText(cellByIndex(doc, idx)), '6', 'кисть без заметок ставит цифру');
 });
 
 test('кисть не перезаписывает данные игрой подсказки', async () => {
@@ -670,7 +685,11 @@ test('серия: сетка 18 недель по 7 дней, прошлое п�
   const squares = streakSquares(doc);
   assert.equal(squares.filter((s) => s.classList.contains('l0')).length > 100, true,
     'пустые дни заполняют сетку');
-  assert.ok(squares.some((s) => s.classList.contains('future')), 'будущие дни помечены');
+  // Сетка заканчивается субботой текущей недели: будущих клеток ровно
+  // столько, сколько дней осталось до субботы (в субботу — ноль).
+  const expectedFuture = 6 - new Date().getDay();
+  assert.equal(squares.filter((s) => s.classList.contains('future')).length, expectedFuture,
+    'будущие дни помечены');
   assert.equal(squares.filter((s) => s.classList.contains('today')).length, 1);
 });
 
