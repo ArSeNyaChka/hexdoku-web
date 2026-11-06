@@ -9,9 +9,16 @@
   var E = window.SudokuEngine;
   var EMPTY = E.EMPTY;
   var STORE_KEY = 'hexdoku:v1';
+  // Дневники активности живут отдельным ключом: их размер растёт со временем
+  // (до ~366 записей в год), а game/settings перезаписываются часто и целиком.
+  var STREAK_KEY = 'hexdoku:streak:v1';
   var MAX_HISTORY = 200;
 
   var DIFF_LABELS = { easy: 'Лёгкий', medium: 'Средний', hard: 'Сложный', expert: 'Эксперт' };
+  var WEEKDAYS = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+  var MONTHS = ['янв', 'фев', 'мар', 'апр', 'май', 'июн',
+    'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  var WEEKS = 18;
 
   var dom = {
     board: document.getElementById('board'),
@@ -42,6 +49,10 @@
     optAutoNotes: document.getElementById('opt-autonotes'),
     optAutoAdvance: document.getElementById('opt-autoadvance'),
     optConflicts: document.getElementById('opt-conflicts'),
+    streak: document.getElementById('streak'),
+    streakCount: document.getElementById('streak-count'),
+    streakMonths: document.getElementById('streak-months'),
+    streakGrid: document.getElementById('streak-grid'),
     saveNote: document.getElementById('save-note')
   };
 
@@ -57,6 +68,10 @@
   var tickTimer = null;
   var saveTimer = null;
   var generating = false;
+  var streakData = {};
+  // День, на который отрисована сетка серии: при смене даты (игра открыта
+  // через полночь) сетку нужно перерисовать.
+  var streakRenderedDay = null;
 
   /* ------------------------------------------------------------------ utils */
 
@@ -74,6 +89,172 @@
     return String(str).replace(/[&<>"]/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
     });
+  }
+
+  /** Строкa «ГГГГ-М-Д» для даты (локальные дни, без смещения часовых поясов). */
+  function dayKey(d) {
+    return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+  }
+
+  function todayKey() {
+    return dayKey(new Date());
+  }
+
+  function parseDayKey(key) {
+    var p = String(key).split('-');
+    return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+  }
+
+  /** 0 — пусто, 1 — один из режимов, 2 — и 9×9, и 16×16. */
+  function levelOf(key) {
+    var d = streakData[key];
+    if (!d) return 0;
+    if (d.nine && d.sixteen) return 2;
+    if (d.nine || d.sixteen) return 1;
+    return 0;
+  }
+
+  /** Отмечает день решённой партией и чистит историю старше года. */
+  function recordStreak(size) {
+    var key = todayKey();
+    var d = streakData[key];
+    if (!d) {
+      d = { nine: false, sixteen: false };
+      streakData[key] = d;
+    }
+    if (size === 9) d.nine = true;
+    else d.sixteen = true;
+
+    var cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 370);
+    Object.keys(streakData).forEach(function (k) {
+      var dt = parseDayKey(k);
+      if (isNaN(dt.getTime()) || dt < cutoff) delete streakData[k];
+    });
+    saveStreak();
+  }
+
+  function saveStreak() {
+    try {
+      localStorage.setItem(STREAK_KEY, JSON.stringify(streakData));
+    } catch (err) { /* приватный режим — просто без дневника */ }
+  }
+
+  /** «6 ноя» — короткая дата для всплывающей подсказки над ячейкой. */
+  function fmtDay(d) {
+    return d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+  }
+
+  function streakLabel(level) {
+    if (level === 2) return 'решено 9×9 и 16×16';
+    if (level === 1) return 'решён один режим';
+    return 'ни одной решённой партии';
+  }
+
+  function pluralDays(n) {
+    if (n === 1) return 'день';
+    if (n >= 2 && n <= 4) return 'дня';
+    return 'дней';
+  }
+
+  /**
+   * Сетка в духе вклада на GitHub: 18 недель столбцами, дни недели строками.
+   * Три состояния клетки: пусто / решён один режим / решены оба режима.
+   */
+  function renderStreak() {
+    if (!dom.streakGrid) return;
+    var now = new Date();
+    streakRenderedDay = dayKey(now);
+
+    var run = currentStreak();
+    dom.streakCount.textContent = run > 0 ? run + ' ' + pluralDays(run) : 'пока нет';
+    dom.streak.setAttribute('title',
+      'Текущая серия: ' + run + ' ' + pluralDays(run) +
+      '. Максимальная: ' + longestStreak() + ' ' + pluralDays(longestStreak()));
+
+    // Конец сетки — суббота текущей недели, начало — WEEKS недель назад.
+    var end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    end.setDate(end.getDate() + (6 - end.getDay()));
+    var start = new Date(end);
+    start.setDate(start.getDate() - (WEEKS * 7 - 1));
+
+    dom.streakMonths.innerHTML = '';
+    dom.streakGrid.innerHTML = '';
+
+    var lastMonth = -1;
+    var col = null;
+    var cursor = new Date(start);
+    while (cursor.getTime() <= end.getTime()) {
+      if (cursor.getDay() === 0) {
+        col = document.createElement('span');
+        col.className = 'streak-week';
+        dom.streakGrid.appendChild(col);
+        // Метка месяца ставится над первой неделей месяца, но слот есть у
+        // каждой недели — иначе подписи не совпали бы со столбцами.
+        var mlab = document.createElement('span');
+        var month = cursor.getMonth();
+        if (month !== lastMonth) {
+          mlab.textContent = MONTHS[month];
+          lastMonth = month;
+        }
+        dom.streakMonths.appendChild(mlab);
+      }
+      var key = dayKey(cursor);
+      var level = levelOf(key);
+      var sq = document.createElement('span');
+      var cls = 'sq l' + level;
+      if (key === todayKey()) cls += ' today';
+      if (cursor.getTime() > now.getTime()) cls += ' future';
+      sq.className = cls;
+      sq.setAttribute('title', fmtDay(cursor) + ' — ' + streakLabel(level));
+      col.appendChild(sq);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+
+  function loadStreak() {
+    try {
+      var raw = localStorage.getItem(STREAK_KEY);
+      var data = raw ? JSON.parse(raw) : null;
+      if (data && typeof data === 'object') streakData = data;
+    } catch (err) {
+      streakData = {};
+    }
+  }
+
+  /** Текущая серия: сегодня ещё пусто — серия не обрывается до конца дня. */
+  function currentStreak() {
+    var cursor = new Date();
+    if (levelOf(dayKey(cursor)) === 0) cursor.setDate(cursor.getDate() - 1);
+    var n = 0;
+    while (levelOf(dayKey(cursor)) > 0) {
+      n++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return n;
+  }
+
+  function longestStreak() {
+    var keys = Object.keys(streakData).filter(function (k) { return levelOf(k) > 0; });
+    var set = {};
+    keys.forEach(function (k) { set[k] = true; });
+    var bestLen = 0;
+    keys.forEach(function (k) {
+      var d = parseDayKey(k);
+      if (isNaN(d.getTime())) return;
+      var prev = new Date(d);
+      prev.setDate(prev.getDate() - 1);
+      if (set[dayKey(prev)]) return; // не начало серии
+      var len = 0;
+      var cur = d;
+      while (set[dayKey(cur)]) {
+        len++;
+        cur = new Date(cur);
+        cur.setDate(cur.getDate() + 1);
+      }
+      if (len > bestLen) bestLen = len;
+    });
+    return bestLen;
   }
 
   /* -------------------------------------------------------------- new game */
@@ -144,6 +325,10 @@
       state.elapsed += Date.now() - state.startedAt;
       state.startedAt = Date.now();
       renderTime();
+      // Игра может быть открыта через полночь: серия считается по дням,
+      // поэтому при смене даты сетку перерисовываем.
+      var today = todayKey();
+      if (today !== streakRenderedDay) renderStreak();
     }, 1000);
   }
 
@@ -585,9 +770,20 @@
     var prev = best[key];
     var isRecord = !prev || prev > state.elapsed;
     if (isRecord) best[key] = state.elapsed;
+    recordStreak(state.size);
     renderAll();
+    renderStreak();
     save();
-    var bestText = fmtTime(best[key]);
+    showWinOverlay(isRecord);
+  }
+
+  /**
+   * Оверлей победы. Вызывается и при восстановлении уже решённой партии
+   * (isRecord = false), чтобы повторный запуск не засчитывал день в серию.
+   */
+  function showWinOverlay(isRecord) {
+    var bestText = fmtTime(best[state.size + ':' + state.difficulty]);
+    var run = currentStreak();
     showOverlay(
       '<h2 class="center">Решено!</h2>' +
       '<p class="center">' + state.size + '×' + state.size + ' · ' + DIFF_LABELS[state.difficulty] +
@@ -598,6 +794,11 @@
       '<div><span>Подсказки</span><b>' + state.hints + '</b></div>' +
       '</div>' +
       '<p class="center">Лучшее результат в этом режиме: ' + bestText + '</p>' +
+      '<p class="center streak-note">' +
+      (run > 0
+        ? '🔥 Серия ' + run + ' ' + pluralDays(run) + ' — решайте каждый день, чтобы не потерять'
+        : 'Решите партию сегодня, чтобы начать серию') +
+      '</p>' +
       '<div class="overlay-actions">' +
       '<button class="btn btn-primary" data-act="new">Новая игра</button>' +
       '<button class="btn" data-act="board">Показать поле</button>' +
@@ -915,6 +1116,8 @@
       best = stored.best || {};
     }
     applySettings();
+    loadStreak();
+    renderStreak();
 
     var restored = false;
     if (stored && stored.game && stored.game.puzzle && stored.game.grid &&

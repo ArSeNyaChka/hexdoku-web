@@ -105,6 +105,27 @@
         <label class="switch"><input type="checkbox" id="opt-conflicts" checked><span class="switch-ui"></span>Подсвечивать совпадения</label>
         <button class="link-btn" id="btn-rules">Как играть</button>
       </section>
+
+      <section class="streak" id="streak" aria-label="Серия решённых дней">
+        <div class="streak-head">
+          <span class="streak-title">Серия</span>
+          <span class="streak-count" id="streak-count">пока нет</span>
+        </div>
+        <div class="streak-body">
+          <div class="streak-days" aria-hidden="true">
+            <span></span><span>пн</span><span></span><span>ср</span><span></span><span>пт</span><span></span>
+          </div>
+          <div class="streak-main">
+            <div class="streak-months" id="streak-months" aria-hidden="true"></div>
+            <div class="streak-grid" id="streak-grid"></div>
+          </div>
+        </div>
+        <div class="streak-legend">
+          <span class="sq l0"></span> нет решённых
+          <span class="sq l1"></span> один режим
+          <span class="sq l2"></span> 9×9 и 16×16
+        </div>
+      </section>
     </aside>
   </div>
 

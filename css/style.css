@@ -86,6 +86,7 @@ body {
 .pad { order: 5; }
 #btn-new { order: 6; width: 100%; margin-left: 0; }
 .options { order: 7; }
+.streak { order: 8; }
 /* Компактные строки переключателей: держим их рядом, чтобы статистика
    осталась на одной строке (4 колонки), а не разъехалась на две. */
 @media (min-width: 521px) and (max-width: 899px) {
@@ -525,6 +526,128 @@ body {
 @keyframes spin { to { transform: rotate(360deg); } }
 .center { text-align: center; }
 .hidden { display: none !important; }
+
+/* ---------- Серия (streak) ---------- */
+.streak {
+  --sq: 11px;
+  --sq-gap: 3px;
+  --month-h: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.streak-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.streak-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--text-dim);
+}
+.streak-count {
+  font: 600 18px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--text);
+}
+.streak-body {
+  display: flex;
+  gap: 4px;
+}
+.streak-days {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sq-gap);
+  /* Строки месяцев занимают место над сеткой, поэтому дни прижаты вниз:
+     иначе «пн»/«ср»/«пт» не совпадали бы со своими рядами. */
+  justify-content: flex-end;
+  padding-top: calc(var(--month-h) + var(--sq-gap));
+  font-size: 8px;
+  color: var(--text-dim);
+}
+.streak-days span {
+  height: var(--sq);
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  visibility: hidden;
+}
+/* Подписи только у строк пн/ср/пт — как на GitHub, чтобы колонка не пестрела. */
+.streak-days span:not(:empty) { visibility: visible; }
+.streak-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sq-gap);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.streak-months {
+  display: flex;
+  gap: 0;
+  font-size: 8px;
+  color: var(--text-dim);
+  height: var(--month-h);
+  overflow: hidden;
+}
+.streak-months span {
+  flex: 1 0 0;
+  padding-left: 1px;
+  white-space: nowrap;
+  line-height: var(--month-h);
+}
+.streak-months span:first-child { padding-left: 0; }
+.streak-grid {
+  display: flex;
+  gap: var(--sq-gap);
+  overflow-x: auto;
+}
+.streak-week {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sq-gap);
+  flex: 0 0 auto;
+}
+.sq {
+  width: var(--sq, 11px);
+  height: var(--sq, 11px);
+  border-radius: 2px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  transition: background .12s, border-color .12s;
+}
+.sq.l1 { background: var(--accent); border-color: var(--accent); }
+.sq.l2 {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.sq.future { opacity: .3; }
+.sq.today { outline: 1px solid var(--accent); outline-offset: -1px; }
+.streak-legend {
+  display: flex;
+  gap: 10px;
+  font-size: 10px;
+  color: var(--text-dim);
+  align-items: center;
+  padding-top: 2px;
+  border-top: 1px solid var(--line);
+}
+.streak-legend .sq {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+.streak-note {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
 
 @media (max-width: 520px) {
   .brand-text p { display: none; }

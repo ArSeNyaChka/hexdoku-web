@@ -285,6 +285,28 @@ function saved(store) {
   return JSON.parse(store.get('hexdoku:v1'));
 }
 
+function savedStreak(store) {
+  return JSON.parse(store.get('hexdoku:streak:v1') || 'null');
+}
+
+/** Заполняет и решает текущую партию до оверлея победы. */
+async function solveCurrent(doc, store) {
+  await tick(600);
+  const solution = saved(store).game.solution;
+  for (let i = 0; i < solution.length; i++) {
+    const cell = cellByIndex(doc, i);
+    if (cell.classList.contains('given')) continue;
+    tap(cell);
+    clickDigit(doc, solution[i]);
+  }
+  await tick(600);
+}
+
+function streakSquares(doc) {
+  const weeks = doc.getElementById('streak-grid').children;
+  return weeks.reduce((acc, w) => acc.concat(w.children), []);
+}
+
 /** Ждём, пока генерация (через setTimeout) не построит поле нужного размера. */
 async function waitForCells(doc, count, timeoutMs = 30000) {
   const start = Date.now();
@@ -497,10 +519,12 @@ test('кисть: клетки с выбранной цифрой подсвеч
   const { doc } = boot();
   await waitForCells(doc, 81);
 
-  // Берём цифру, которая точно есть среди подсказок, чтобы тест не зависел
-  // от конкретного расклада.
+  // Ищем подсказку, которая точно не «1» (value=0), иначе клик по 0 гасит кисть.
   const board = doc.getElementById('board');
-  const sample = board.children.find((c) => c.classList.contains('given'));
+  const sample = board.children.find((c) => {
+    const t = digitText(c);
+    return c.classList.contains('given') && t !== '1';
+  });
   const symbol = digitText(sample);
   const value = symbol.charCodeAt(0) - '1'.charCodeAt(0);
 
@@ -589,4 +613,76 @@ test('восстановление из хранилища: перезагруз
     E.toChar(savedValue, 9),
     'клетка восстановлена после перезагрузки'
   );
+});
+
+/* ------------------------------------------------------------------ streak */
+
+test('серия: решённая партия окрашивает сегодняшний день в level 1', async () => {
+  const { doc, store } = boot();
+  await waitForCells(doc, 81);
+  await solveCurrent(doc, store);
+
+  const today = new Date();
+  const key = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
+  const data = savedStreak(store);
+  assert.ok(data, 'дневник серии записан в отдельный ключ');
+  assert.equal(data[key].nine, true, 'отмечен режим 9×9');
+  assert.equal(data[key].sixteen, false, 'шестнадцатеричный не отмечен');
+
+  const doc2 = bootWith(store).doc;
+  const squares = streakSquares(doc2);
+  const todaySq = squares.filter((s) => s.classList.contains('today'));
+  assert.equal(todaySq.length, 1, 'сегодняшний день подсвечен рамкой');
+  assert.ok(todaySq[0].classList.contains('l1'), 'один режим — средний уровень');
+  assert.match(doc2.getElementById('streak-count').textContent, /1 день/);
+});
+
+test('серия: второй решённый режим поднимает день до level 2', async () => {
+  const { doc, store } = boot();
+  await waitForCells(doc, 81);
+  await solveCurrent(doc, store);
+
+  // переключаемся на 16×16 и решаем её
+  const btn16 = doc.getElementById('size-switch').children.find((b) => b.dataset.size === '16');
+  click(btn16);
+  await waitForCells(doc, 256);
+  await solveCurrent(doc, store);
+
+  const today = new Date();
+  const key = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
+  const data = savedStreak(store);
+  assert.equal(data[key].nine, true);
+  assert.equal(data[key].sixteen, true, 'оба режима за один день');
+
+  const squares = streakSquares(bootWith(store).doc);
+  const todaySq = squares.find((s) => s.classList.contains('today'));
+  assert.ok(todaySq.classList.contains('l2'), 'полный день — максимальный уровень');
+});
+
+test('серия: сетка 18 недель по 7 дней, прошлое пустое, будущее приглушено', async () => {
+  const { doc } = boot();
+  await waitForCells(doc, 81);
+
+  const weeks = doc.getElementById('streak-grid').children;
+  assert.equal(weeks.length, 18, '18 столбцов-недель');
+  weeks.forEach((w) => assert.equal(w.children.length, 7, 'по 7 дней в неделе'));
+
+  const squares = streakSquares(doc);
+  assert.equal(squares.filter((s) => s.classList.contains('l0')).length > 100, true,
+    'пустые дни заполняют сетку');
+  assert.ok(squares.some((s) => s.classList.contains('future')), 'будущие дни помечены');
+  assert.equal(squares.filter((s) => s.classList.contains('today')).length, 1);
+});
+
+test('серия: восстановление решённой партии не добавляет день задним числом', async () => {
+  const { doc, store } = boot();
+  await waitForCells(doc, 81);
+  await solveCurrent(doc, store);
+  const before = JSON.stringify(savedStreak(store));
+
+  // «Перезагрузка» поверх решённой игры: checkWin не должен ничего менять.
+  bootWith(store);
+  await tick(600);
+  assert.equal(JSON.stringify(savedStreak(store)), before,
+    'дневник не изменился при восстановлении');
 });
