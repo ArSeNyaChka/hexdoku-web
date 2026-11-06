@@ -310,18 +310,26 @@ body {
 .cell .digit { position: relative; z-index: 1; }
 .cell.notes-only .notes { display: grid; }
 .cell .notes {
+  --note-cols: 3;
+  --note-pad: 2px;
   display: none;
   position: absolute;
-  inset: 2px;
+  inset: var(--note-pad);
   grid-template-columns: repeat(var(--note-cols), 1fr);
   align-items: center;
   justify-content: center;
-  font: 700 calc(var(--cell) * .27) / 1.1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Было: font: calc(var(--cell) * .27) / 1.1 — глиф считался от всей
+     клетки, а влезать он должен в ячейку сетки заметок (cell/cols).
+     В 16×16 строка с межстрочным 1.1 оказывалась выше слота, и четыре
+     ряда заметок переливались за нижнюю границу клетки. Теперь размер —
+     85% ширины слота, строка = 1: и по высоте, и по ширине символ
+     гарантированно внутри своей ячейки. */
+  font: 700 calc((var(--cell) - var(--note-pad) * 2) / var(--note-cols) * .85) / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
   color: var(--note);
   z-index: 1;
+  overflow: hidden;
 }
-.board.size-9 .cell .notes { --note-cols: 3; }
-.board.size-16 .cell .notes { --note-cols: 4; }
+.board.size-16 .cell .notes { --note-cols: 4; --note-pad: 1px; }
 .cell .notes span { text-align: center; visibility: hidden; }
 .cell .notes span.on { visibility: visible; color: var(--note); }
 
